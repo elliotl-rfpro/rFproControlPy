@@ -58,14 +58,11 @@ sl_settings = "sl_settings_lum_1e9_fog"
 
 # Create an instance of the rFpro.Controller
 rFpro = Controller.DeserializeFromFile('../configs/autogen/PyTest1.json')
-print(rFpro)
 
 # Static settings
 rFpro.DynamicWeatherEnabled = True
 rFpro.Camera = 'Cockpit'
 rFpro.ParkedTrafficDensity = Decimal(0.5)
-
-# Dynamic settings (loop here if needed)
 rFpro.Vehicle = 'Hatchback_AWD_Red'
 rFpro.Location = '2kFlat'
 rFpro.VehiclePlugin = 'RemoteModelPlugin'
@@ -83,7 +80,7 @@ fog = jdict['weather']['fog']
 turbidities = jdict['sl_settings']['default_turbidity']
 if not isinstance(jdict['sl_settings']['default_turbidity'], list):
     turbidities = [jdict['sl_settings']['default_turbidity']]
-fog_hg_anisotropy = [0.75]
+fog_hg_anisotropy = [0.0]
 
 # Load the raytracer.toml file, insert the correct hg anisotropy, and save it.
 for fog_hg in fog_hg_anisotropy:
@@ -105,20 +102,11 @@ for fog_hg in fog_hg_anisotropy:
         with open(r"C:/rFpro/2023b/rFpro/GameData/SharedDX11/slresources/SilverLining.config", 'w') as f:
             f.writelines(sl_data)
 
-        while rFpro.NodeStatus.NumAlive < rFpro.NodeStatus.NumListeners:
-            print(f'{rFpro.NodeStatus.NumAlive} of {rFpro.NodeStatus.NumListeners} Listeners connected.')
-            time.sleep(1)
-        print(f'{rFpro.NodeStatus.NumAlive} of {rFpro.NodeStatus.NumListeners} Listeners connected.')
-
         # Outer loop for iterating date/time
         for t in times:
             rFpro.StartTime = DateTime.Parse(t)
             # Outer loop for each combination of simulation settings
             for rFpro.Cloudiness, rFpro.Rain, rFpro.Fog in itertools.product(cloudiness, rain, fog):
-                # Make sure re-init is handled properly
-                if rFpro.NodeStatus.NumAlive > 0:
-                    rFpro.StopSession()
-
                 # Open the TrainingData.ini file and correctly adjust the saving folder (with date/time)
                 with open(r"C:/rFpro/2023b/rFpro/Plugins/WarpBlend/TrainingData.ini", 'r') as f:
                     training_data = f.readlines()
@@ -129,25 +117,34 @@ for fog_hg in fog_hg_anisotropy:
                 training_data[1] = 'OutputDir=' + save_loc + '\n'
                 with open(r"C:/rFpro/2023b/rFpro/Plugins/WarpBlend/TrainingData.ini", 'w') as f:
                     f.writelines(training_data)
-                # f.close()
 
                 # Write any other comments about the simulation here
                 jdict['general']['comments'] = comments + f' fog anisotropy={fog_hg}' + f' time={folder_time}'
                 with open(f'../configs/{sl_settings}.json', 'w') as out_file:
                     json.dump(jdict, out_file)
 
-                # Callback for time-based cancellation
-                rFpro.SignalEndCondition = rFpro.SignalEndCondition.Time
-                rFpro.SignalAtElapsedTime = 500.0
-                rFpro.ElapsedTimeReached += et_callback
+                # # Callback for time-based cancellation
+                # rFpro.SignalEndCondition = rFpro.SignalEndCondition.Time
+                # rFpro.ElapsedTimeReached = 5.0
+                # rFpro.ElapsedTimeReached += et_callback
 
-                # Main running loop here
+                # Connect
+                while rFpro.NodeStatus.NumAlive < rFpro.NodeStatus.NumListeners:
+                    print(f'{rFpro.NodeStatus.NumAlive} of {rFpro.NodeStatus.NumListeners} Listeners connected.')
+                    time.sleep(1)
+                print(f'{rFpro.NodeStatus.NumAlive} of {rFpro.NodeStatus.NumListeners} Listeners connected.')
+
                 rFpro.StartSession()
                 # rFpro.ToggleAi()
 
-                # Do stuff in the loop here
-                while rFpro.NodeStatus.PhysicsStatus == "Running":
-                    pass
+                t1 = time.time()
+                while True:
+                    t2 = time.time()
+                    # if (t2 - t2).is_integer():
+                        # print(f'Elapsed: {t2 - t1:.2f}')
+                    if (t2 - t1) >= 35.0:
+                        rFpro.StopSession()
+                        break
 
                 # Place a copy of the sl_settings_default.json file into the folder, to track simulation settings
                 if not os.path.exists(rf"../configs/{sl_settings}.json"):

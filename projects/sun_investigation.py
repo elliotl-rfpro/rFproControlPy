@@ -72,7 +72,7 @@ def create_circular_mask(h, w, center, radius):
 
 # Init and loads
 BASE_PATH = Path(r'C:\Users\ElliotLondon\Documents\PythonLocal\rFproControlPy\data\sun')
-DATA_PATH = BASE_PATH / 'sweep_fog_hg75_max'
+DATA_PATH = BASE_PATH / 'sweep_fog_hg10_max'
 
 
 def analyse_luminosity(folder_time: Optional[str] = None) -> float:
@@ -88,7 +88,7 @@ def analyse_luminosity(folder_time: Optional[str] = None) -> float:
         current_data_path = DATA_PATH / '20240501_161650'
 
     # Load .tiff image using GDAL
-    data_set = gdal.Open(str(current_data_path / f'TrainingTruthHDR_0007.tiff'))
+    data_set = gdal.Open(str(current_data_path / f'TrainingTruthHDR_0004.tiff'))
 
     # As, there are 3 bands, we will store in 3 different variables
     band_1 = data_set.GetRasterBand(1)  # red channel
@@ -185,7 +185,6 @@ def analyse_fog_sequence(folder_times: List[str] = None):
     for folder in folder_times:
         ydata.append(analyse_luminosity(folder) / 1e9)
 
-    # Number of multiples of 30 minutes from zenith at zero for 1st value in array
     xdata = [0.0, 0.005, 0.01, 0.015, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1, 0.2]
     xinterp = np.linspace(xdata[0], xdata[-1], 250)
 
@@ -201,16 +200,17 @@ def analyse_fog_sequence(folder_times: List[str] = None):
     # Print ratio between max and min luminance difference
     print(f'Max/min luminance: {ydata[-1]/ydata[0]}')
 
-    # Plot the data
-    plt.plot(xdata, ydata, '.', label='Measured data')
-    plt.plot(xinterp, fog_y, label=r'$y=I_0\exp^{-2\pi r^2 nkZ}$')
-    plt.title('Solar luminosity at zenith')
-    plt.xlabel(r'$Fog\;density\;(Max.\;Extinction\;Coeff.,\;[1/m])$')
-    plt.ylabel(r'$Solar\;luminosity\;[cd / m^2] * 1e9$')
-    plt.legend()
-    plt.show()
+    # # Plot the data
+    # plt.plot(xdata, ydata, '.', label='Measured data')
+    # plt.plot(xinterp, fog_y, label=r'$y=I_0\exp^{-2\pi r^2 nkZ}$')
+    # plt.title('Solar luminosity at zenith')
+    # plt.xlabel(r'$Fog\;density\;(Max.\;Extinction\;Coeff.,\;[1/m])$')
+    # plt.ylabel(r'$Solar\;luminosity\;[cd / m^2] * 1e9$')
+    # plt.legend()
+    # plt.show()
 
     return xdata, ydata, xinterp, fog_y
+
 
 def analyse_luminosity_sequence(folder_times: List[str] = None) -> None:
     """
@@ -279,7 +279,7 @@ def analyse_luminosity_month(folder_times: List[str] = None) -> None:
 
 if __name__ == '__main__':
     # Define the sequence of folders to grab data from
-    fnames = ['sweep_fog_hg00_max', 'sweep_fog_hg25_max', 'sweep_fog_hg50_max', 'sweep_fog_hg75_max']
+    fnames = ['sweep_fog_hg00_max', 'sweep_fog_hg10_max', 'sweep_fog_hg25_max']
     xdata = []
     ydata = []
     xinterp = []
@@ -295,7 +295,7 @@ if __name__ == '__main__':
             analyse_luminosity_month(folders)
         elif 'turbidity' in fname:
             analyse_turbidity_sequence(folders)
-        elif 'fog' in fname:
+        elif 'fog' in fname and 'hg' in fname:
             x1, y1, x2, y2 = analyse_fog_sequence(folders)
             xdata.append(x1)
             ydata.append(y1)
@@ -307,14 +307,13 @@ if __name__ == '__main__':
     # Plot the data
     labels = [
         'g=0.00',
-        'g=0.25',
-        'g=0.50',
-        'g=0.75'
+        'g=0.10',
+        'g=0.25'
     ]
     for i in range(len(fnames)):
         plt.plot(xdata[i], ydata[i], '.', label=f'Measured data, {labels[i]}')
         plt.plot(xinterp[i], fog_y[i], label=r'$y=I_0\exp^{-2\pi r^2 nkZ}$')
-    plt.yscale('log')
+    # plt.yscale('log')
     plt.title('Solar luminosity at zenith')
     plt.xlabel(r'$Fog\;density\;(Max.\;Extinction\;Coeff.,\;[1/m])$')
     plt.ylabel(r'$Solar\;luminosity\;[cd / m^2] * 1e9$')
