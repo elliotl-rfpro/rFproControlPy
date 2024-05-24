@@ -2,7 +2,6 @@ import numpy as np
 from matplotlib import pyplot as plt
 from pathlib import Path
 import seaborn as sns
-from math import pi
 from osgeo import gdal
 from typing import Optional, List
 from scipy.optimize import curve_fit
@@ -12,7 +11,11 @@ from utils.file_management import list_simulations
 
 sns.set(palette="dark", font_scale=1.1, color_codes=True)
 sns.set_style('darkgrid', {'axes.linewidth': 1, 'axes.edgecolor': 'black'})
-images = 50
+
+# Init and loads
+# BASE_PATH = Path(r'C:\Users\ElliotLondon\Documents\PythonLocal\rFproControlPy\data\sun')
+BASE_PATH = Path(r'C:\Users\ElliotLondon\Documents\PythonLocal\rFproControlPy\data\sky')
+DATA_PATH = BASE_PATH / 'timelapse_clear_max'
 
 
 def sin_func(x, a, b, c, d):
@@ -35,14 +38,14 @@ def calc_zenith_function(array_len: int, ydata: np.array([float])) -> np.array([
 
     # Convert minutes from zenith to angle
     latitude = 51.48 * np.pi / 180
-    dec_angle = -23.45 * np.cos(360/365 * (172 + 10)) * np.pi / 180     # Angle of declination
-    hour_angle = np.linspace(-adj_len * 7.5, adj_len * 7.5, array_len) * np.pi / 180    # Local hour angle
+    dec_angle = -23.45 * np.cos(360 / 365 * (172 + 10)) * np.pi / 180  # Angle of declination
+    hour_angle = np.linspace(-adj_len * 7.5, adj_len * 7.5, array_len) * np.pi / 180  # Local hour angle
 
     # Solar elevation
     # https://www.omnicalculator.com/physics/sun-angle
     elev_angle = np.arcsin(
-                (np.sin(dec_angle) * np.sin(latitude)) +
-                (np.cos(latitude) * np.cos(hour_angle) * np.cos(dec_angle)))
+        (np.sin(dec_angle) * np.sin(latitude)) +
+        (np.cos(latitude) * np.cos(hour_angle) * np.cos(dec_angle)))
 
     # Convert solar elevation to luminosity scale
     # https://www.pveducation.org/pvcdrom/properties-of-sunlight/calculation-of-solar-insolation
@@ -68,11 +71,6 @@ def create_circular_mask(h, w, center, radius):
     dist_from_center = np.sqrt((x - center[0]) ** 2 + (y - center[1]) ** 2)
     mask = dist_from_center <= radius
     return mask
-
-
-# Init and loads
-BASE_PATH = Path(r'C:\Users\ElliotLondon\Documents\PythonLocal\rFproControlPy\data\sun')
-DATA_PATH = BASE_PATH / 'sweep_fog_hg10_max'
 
 
 def analyse_luminosity(folder_time: Optional[str] = None) -> float:
@@ -104,29 +102,27 @@ def analyse_luminosity(folder_time: Optional[str] = None) -> float:
     # plot_rgb_data(b3, 'b', 'Channel: B')
     # plt.show()
 
-    # Find max ind, use to create and apply a circular mask
-    max_value = 0
-    temp_ind = 0
-    for i in range(len(b1[:, 0])):
-        for j in range(len(b1[0, :])):
-            if b1[i, j] > max_value:
-                max_value = b1[i, j]
-                temp_ind = [j, i]
-    sun_mask = create_circular_mask(len(b1[:, 0]), len(b1[0, :]), temp_ind, 50)
-    new_b1 = b1.copy()
-    new_b2 = b2.copy()
-    new_b3 = b3.copy()
-    new_b1[~sun_mask] = 0
-    new_b2[~sun_mask] = 0
-    new_b3[~sun_mask] = 0
-    # Remove the min value (noise) from the remaining data
-    new_b1 -= min(new_b1[new_b1 > 0])
-    new_b2 -= min(new_b2[new_b2 > 0])
-    new_b3 -= min(new_b3[new_b3 > 0])
-    # Anything below 0 is now noise, set it to 0
-    new_b1[new_b1 < 0] = 0
-    new_b2[new_b2 < 0] = 0
-    new_b3[new_b3 < 0] = 0
+    # Just use the central value
+    max_value = b1[b1.shape[0] // 2, b1.shape[1] // 2]
+
+    # # Find and use max value
+    # max_value = 0
+    # temp_ind = 0
+    # for i in range(len(b1[:, 0])):
+    #     for j in range(len(b1[0, :])):
+    #         if b1[i, j] > max_value:
+    #             max_value = b1[i, j]
+    #             temp_ind = [j, i]
+    # sun_mask = create_circular_mask(len(b1[:, 0]), len(b1[0, :]), temp_ind, 50)
+    # new_b1 = b1.copy()
+    # new_b2 = b2.copy()
+    # new_b3 = b3.copy()
+
+    # # Set every 'sun' value to 0.
+    # if 'sky' in BASE_PATH:
+    #     new_b1[sun_mask] = 0
+    #     new_b2[sun_mask] = 0
+    #     new_b3[sun_mask] = 0
 
     # # Show cleaned plots
     # plot_rgb_data(new_b1, 'r', 'Channel: R')
@@ -134,20 +130,14 @@ def analyse_luminosity(folder_time: Optional[str] = None) -> float:
     # plot_rgb_data(new_b3, 'b', 'Channel: B')
     # plt.show()
 
-    # Units are in knits (kcd / m^2)
-    tot_max = sum(sum(new_b1) + sum(new_b2) + sum(new_b3))
+    # # Units are in knits (kcd / m^2)
+    # tot_max = sum(sum(new_b1) + sum(new_b2) + sum(new_b3))
 
-    # Calulate solar luminance, or candela / m^2
-    tot_lums = tot_max * 1000
+    # knits to nits (cd/m^2)
+    max_value *= 1000
+    print(f"Simulated max solar luminance (nits): {max_value:.2e}")
 
-    # Calculate solar illuminance, or lux / m^2
-    total_illums = (0.21 * sum(sum(new_b1)) + 0.72 * sum(sum(new_b2)) + 0.07 * sum(sum(new_b3))) * pi * 1000
-
-    print(f"Simulated max solar luminance (nits): {max_value * 1000:.2e}")
-    print(f"Simulated total solar luminance (nits): {tot_lums:.2e}")
-    print(f"Simulated solar illuminance (lux): {total_illums:.2e}\n")
-
-    return max_value * 1000
+    return max_value
 
 
 def analyse_turbidity_sequence(folder_times: List[str] = None) -> None:
@@ -164,7 +154,7 @@ def analyse_turbidity_sequence(folder_times: List[str] = None) -> None:
     xdata = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 12.5, 15, 20, 30]
 
     # Print ratio between max and min luminance difference
-    print(f'Max/min luminance: {ydata[-1]/ydata[0]}')
+    print(f'Max/min luminance: {ydata[-1] / ydata[0]}')
 
     # Plot the data
     plt.plot(xdata, ydata, '.', label='Measured data')
@@ -198,7 +188,7 @@ def analyse_fog_sequence(folder_times: List[str] = None):
     fog_y = np.array(fog_y)
 
     # Print ratio between max and min luminance difference
-    print(f'Max/min luminance: {ydata[-1]/ydata[0]}')
+    print(f'Max/min luminance: {ydata[-1] / ydata[0]}')
 
     # # Plot the data
     # plt.plot(xdata, ydata, '.', label='Measured data')
@@ -220,7 +210,7 @@ def analyse_luminosity_sequence(folder_times: List[str] = None) -> None:
     """
     ydata = []
     for folder in folder_times:
-        ydata.append(analyse_luminosity(folder) / 1e9)
+        ydata.append(analyse_luminosity(folder))
 
     # Number of multiples of 30 minutes from zenith at zero for 1st value in array
     array_len = len(ydata)
@@ -239,11 +229,11 @@ def analyse_luminosity_sequence(folder_times: List[str] = None) -> None:
     # Plot the data
     plt.plot(xdata, ydata, '.', label='Measured data')
     # plt.plot(xinterp, yinterp, '.', label='Extrapolation')
-    plt.plot(xdata, i_d_norm, '-', label='Solar elevation (normalised)')
+    # plt.plot(xdata, i_d_norm, '-', label='Solar elevation (normalised)')
     # plt.plot(xdata, sin_func(xdata, p1[0], p1[1], p1[2], p1[3]), label='y=a sin(bx + c) + d')
-    plt.title('Solar luminosity at zenith')
+    plt.title('Sky luminosity perpendicular to earth surface')
     plt.xlabel('Minutes from zenith')
-    plt.ylabel('Solar luminosity (candela / m^2) * 1e9')
+    plt.ylabel('Solar luminosity (candela / m^2)')
     plt.legend()
     plt.show()
 
@@ -279,14 +269,16 @@ def analyse_luminosity_month(folder_times: List[str] = None) -> None:
 
 if __name__ == '__main__':
     # Define the sequence of folders to grab data from
-    fnames = ['sweep_fog_hg00_max', 'sweep_fog_hg10_max', 'sweep_fog_hg25_max']
+    # fnames = ['sweep_fog_hg00_alb07_max', 'sweep_fog_hg05_alb07_max', 'sweep_fog_hg10_alb07_max', 'sweep_fog_hg25_alb07_max']
+    # fnames = ['sweep_fog_hg00_alb1_max', 'sweep_fog_hg10_alb1_max', 'sweep_fog_hg25_alb1_max']
+    fnames = ['timelapse_clear_max']
     xdata = []
     ydata = []
     xinterp = []
     fog_y = []
     for fname in fnames:
         DATA_PATH = BASE_PATH / fname
-        list_simulations(fname)
+        list_simulations(DATA_PATH)
 
         with open(DATA_PATH / 'names.txt') as file:
             folders = eval(file.read())
@@ -304,18 +296,23 @@ if __name__ == '__main__':
         else:
             analyse_luminosity_sequence(folders)
 
-    # Plot the data
-    labels = [
-        'g=0.00',
-        'g=0.10',
-        'g=0.25'
-    ]
-    for i in range(len(fnames)):
-        plt.plot(xdata[i], ydata[i], '.', label=f'Measured data, {labels[i]}')
-        plt.plot(xinterp[i], fog_y[i], label=r'$y=I_0\exp^{-2\pi r^2 nkZ}$')
-    # plt.yscale('log')
-    plt.title('Solar luminosity at zenith')
-    plt.xlabel(r'$Fog\;density\;(Max.\;Extinction\;Coeff.,\;[1/m])$')
-    plt.ylabel(r'$Solar\;luminosity\;[cd / m^2] * 1e9$')
-    plt.legend()
-    plt.show()
+    # # Plot the data
+    # labels = []
+    # for element in fnames:
+    #     if 'hg00' in element:
+    #         labels.append('g=0.00')
+    #     elif 'hg05' in element:
+    #         labels.append('g=0.05')
+    #     elif 'hg10' in element:
+    #         labels.append('g=0.10')
+    #     elif 'hg25' in element:
+    #         labels.append('g=0.25')
+    # for k in range(len(fnames)):
+    #     plt.plot(xinterp[k], fog_y[k], label=r'$y=I_0\exp^{-2\pi r^2 nkZ}$')
+    #     plt.plot(xdata[k], ydata[k], '.', label=f'Measured data, {labels[k]}')
+    # # plt.yscale('log')
+    # plt.title('Solar luminosity at zenith')
+    # plt.xlabel(r'$Fog\;density\;(Max.\;Extinction\;Coeff.,\;[1/m])$')
+    # plt.ylabel(r'$Solar\;luminosity\;[cd / m^2] * 1e9$')
+    # plt.legend()
+    # plt.show()

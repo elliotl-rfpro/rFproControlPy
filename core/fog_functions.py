@@ -100,5 +100,5 @@ def check_scattering_coeffs():
     plt.show()
 
 
-# check_hg_phase()
+check_hg_phase()
 # check_scattering_coeffs()
