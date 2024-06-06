@@ -22,7 +22,7 @@ from System import DateTime, Decimal
 
 # Load in the DATA_PATH
 DATA_PATH = sun_investigation.DATA_PATH
-comments = f'raytraced sky timelapse, different times of day'
+comments = f'rasterised, cloud sweep'
 
 
 def find_and_replace(data: List[str], values: dict) -> None:
@@ -41,10 +41,11 @@ def find_and_replace(data: List[str], values: dict) -> None:
 
 # Which sl_settings.json?
 # sl_settings = "sl_settings_default"
-sl_settings = "sl_settings_lum_1e9"
+# sl_settings = "sl_settings_lum_1e9"
 # sl_settings = "sl_settings_lum_1e9_months"
 # sl_settings = "sl_settings_lum_1e9_turbidity"
 # sl_settings = "sl_settings_lum_1e9_fog"
+sl_settings = "sl_settings_lum_1e9_clouds"
 # sl_settings = "sl_settings_raytrace"
 
 # Simulation settings for the current campaign. Load from configs/sl_settings_default.json
@@ -61,11 +62,16 @@ turbidities = jdict['sl_settings']['default_turbidity']
 if not isinstance(jdict['sl_settings']['default_turbidity'], list):
     turbidities = [jdict['sl_settings']['default_turbidity']]
 
-# Load the raytracer.toml file, insert the correct hg anisotropy, and save it.
-fog_hg = 0.25
+# Load the raytracer.toml file, insert the correct fog params, and save it.
+fog_hg = 0.0
+fog_albedo = 0.7
 with open(r"C:/rFpro/2023b/rFpro/Plugins/RaytracePlugin.toml", 'r') as f:
     rt_data = f.readlines()
-rt_data[-1] = f'fog_HG_anisotropy = {fog_hg}'
+for line in range(len(rt_data)):
+    if 'fog_albedo' in rt_data[line]:
+        rt_data[line] = f'fog_albedo = {fog_albedo}\n'
+    elif 'fog_hg_anisotropy' in rt_data[line]:
+        rt_data[line] = f'fog_hg_anisotropy = {fog_hg}\n'
 with open(r"C:/rFpro/2023b/rFpro/Plugins/RaytracePlugin.toml", 'w') as f:
     f.writelines(rt_data)
 
@@ -125,7 +131,7 @@ for turbidity in turbidities:
             t1 = time.time()
             while True:
                 t2 = time.time()
-                if (t2 - t1) >= 35.0:
+                if (t2 - t1) >= 20.0:
                     rFpro.StopSession()
                     break
 

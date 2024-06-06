@@ -25,7 +25,7 @@ def hg_phase_func(cos_angle, g):
     return 1/(4*pi) * (1 - g * g) / (denom * np.sqrt(denom))
 
 
-def check_hg_phase():
+def check_hg_phase(plot: bool = False):
     # Function to investigate the behaviour of theta and g in the HG phase function.
     angles = np.linspace(0, 360, 1000)
     gs = [0, 0.3, 0.5, 0.8, 0.9, 0.95]
@@ -37,21 +37,22 @@ def check_hg_phase():
             sol.append(hg_phase_func(cos_angle_, ghg))
         y.append(sol)
 
-    for i in range(len(gs)):
-        plt.plot(angles, y[i], label=f'g={gs[i]}')
-    plt.yscale('log')
-    plt.legend()
-    plt.ylabel(r'$\log_{10}\left({\frac{1}{4\pi} \frac{1 - g^2}{(1 + g^2 + 2gcos(\theta))^{3/2}}}\right)$')
-    plt.xlabel(r'$\theta [°]$')
-    plt.show()
+    if plot:
+        for i in range(len(gs)):
+            plt.plot(angles, y[i], label=f'g={gs[i]}')
+        plt.yscale('log')
+        plt.legend()
+        plt.ylabel(r'$\log_{10}\left({\frac{1}{4\pi} \frac{1 - g^2}{(1 + g^2 + 2gcos(\theta))^{3/2}}}\right)$')
+        plt.xlabel(r'$\theta [°]$')
+        plt.show()
 
-    fig, ax = plt.subplots(subplot_kw={'projection': 'polar'})
-    for i in range(len(gs)):
-        ax.plot(angles * pi / 180, y[i], label=f'g={gs[i]}')
-    ax.set_yscale('log')
-    ax.grid(True)
-    ax.legend(loc="lower right")
-    plt.show()
+        fig, ax = plt.subplots(subplot_kw={'projection': 'polar'})
+        for i in range(len(gs)):
+            ax.plot(angles * pi / 180, y[i], label=f'g={gs[i]}')
+        ax.set_yscale('log')
+        ax.grid(True)
+        ax.legend(loc="lower right")
+        plt.show()
 
 
 def get_scattering_coeffs(albedo, fog_density):
@@ -60,7 +61,7 @@ def get_scattering_coeffs(albedo, fog_density):
     return scattering_coeff, absorption_coeff
 
 
-def check_scattering_coeffs():
+def check_scattering_coeffs(plot: bool = False):
     albedos = np.linspace(0.0, 1.0, 11)
     fog_density = np.linspace(0.0, 0.4, 100)
 
@@ -79,26 +80,27 @@ def check_scattering_coeffs():
         alpha.append(a)
         rho.append(r)
 
-    ax = fig.add_subplot(131, projection='3d')
-    ax.plot_surface(x, y, np.asarray(alpha).transpose(), cmap=cm.coolwarm, alpha=0.5,
-                           linewidth=0, antialiased=False, label='Scattering coeff.')
-    plt.xlabel('Albedo')
-    plt.ylabel('Fog Density')
-    plt.legend()
-    ax = fig.add_subplot(132, projection='3d')
-    ax.plot_surface(x, y, np.asarray(rho).transpose(), cmap=cm.coolwarm, alpha=0.5,
-                       linewidth=0, antialiased=False, label='Absorption coeff.')
-    plt.xlabel('Albedo')
-    plt.ylabel('Fog Density')
-    plt.legend()
-    ax = fig.add_subplot(133, projection='3d')
-    ax.plot_surface(x, y, np.asarray(alpha).transpose() - np.asarray(rho).transpose(), cmap=cm.coolwarm, alpha=0.5,
-                       linewidth=0, antialiased=False, label='Absorption coeff.')
-    plt.xlabel('Albedo')
-    plt.ylabel('Fog Density')
-    plt.legend()
-    plt.show()
+    if plot:
+        ax = fig.add_subplot(131, projection='3d')
+        ax.plot_surface(x, y, np.asarray(alpha).transpose(), cmap=cm.coolwarm, alpha=0.5,
+                               linewidth=0, antialiased=False, label='Scattering coeff.')
+        plt.xlabel('Albedo')
+        plt.ylabel('Fog Density')
+        plt.legend()
+        ax = fig.add_subplot(132, projection='3d')
+        ax.plot_surface(x, y, np.asarray(rho).transpose(), cmap=cm.coolwarm, alpha=0.5,
+                           linewidth=0, antialiased=False, label='Absorption coeff.')
+        plt.xlabel('Albedo')
+        plt.ylabel('Fog Density')
+        plt.legend()
+        ax = fig.add_subplot(133, projection='3d')
+        ax.plot_surface(x, y, np.asarray(alpha).transpose() - np.asarray(rho).transpose(), cmap=cm.coolwarm, alpha=0.5,
+                           linewidth=0, antialiased=False, label='Absorption coeff.')
+        plt.xlabel('Albedo')
+        plt.ylabel('Fog Density')
+        plt.legend()
+        plt.show()
 
 
-check_hg_phase()
-# check_scattering_coeffs()
+# check_hg_phase(plot=True)
+# check_scattering_coeffs(plot=True)
