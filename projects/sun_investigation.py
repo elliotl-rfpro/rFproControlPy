@@ -13,13 +13,13 @@ sns.set(palette="dark", font_scale=1.1, color_codes=True)
 sns.set_style('darkgrid', {'axes.linewidth': 1, 'axes.edgecolor': 'black'})
 
 # Init, loads, globals...
-BASE_PATH = Path(r'C:\Users\ElliotLondon\Documents\PythonLocal\rFproControlPy\data\sun\clouds')
-# BASE_PATH = Path(r'C:\Users\ElliotLondon\Documents\PythonLocal\rFproControlPy\data\sky\clouds')
-DATA_PATH = BASE_PATH / 'clouds_raster_1414_g-085'
+# BASE_PATH = Path(r'C:\Users\ElliotLondon\Documents\PythonLocal\rFproControlPy\data\sun\fog_anisotropy')
+BASE_PATH = Path(r'C:\Users\ElliotLondon\Documents\PythonLocal\rFproControlPy\data\sky\fog_anisotropy')
+DATA_PATH = BASE_PATH / 'fog_raytrace_1414_hg100_alb07'
 img_num = '0004'
 # img_type = 'LDR'
 img_type = 'HDR'
-save = True
+save = False
 
 
 def sin_func(x, a, b, c, d):
@@ -200,12 +200,15 @@ def analyse_fog_sequence(folder_times: List[str] = None):
 
     # xdata = [0.0, 0.005, 0.01, 0.015, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1, 0.2]
     xdata = [0.0001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.075, 0.1]
+    # xdata = [0.0, 0.01, 0.025, 0.05, 0.075, 0.1]
     xinterp = np.linspace(xdata[0], xdata[-1], 250)
 
     # Calculate curve fit of fog luminance function
     try:
         p1, cov = curve_fit(calc_fog_func, xdata, ydata, p0=[ydata[0], 1], method='dogbox')
     except RuntimeError:
+        p1 = [np.nan, np.nan]
+    except ValueError:
         p1 = [np.nan, np.nan]
     print(p1)
 
@@ -295,69 +298,31 @@ def analyse_luminosity_month(folder_times: List[str] = None) -> None:
     plt.show()
 
 
-if __name__ == '__main__':
-    # Define the sequence of folders to grab data from
-    # Fog HG anisotropy and albedo tests
-    # fnames = ['sweep_fog_hg00_alb07_max', 'sweep_fog_hg50_alb07_max', 'sweep_fog_hg100_alb07_max']
-    # fnames = ['sweep_fog_hg00_alb07_max', 'sweep_fog_hg10_alb07_max', 'sweep_fog_hg20_alb07_max']
-    # fnames = ['sweep_fog_hg00_alb1_max', 'sweep_fog_hg10_alb1_max', 'sweep_fog_hg20_alb1_max']
-    # fnames = ['timelapse_clear_full']
+def plot_luminance_data(fnames, save: bool = False):
+    # Plot luminance analysis data
+    fig = plt.figure()
+    plt.rcParams["figure.figsize"] = (10, 6)
+    plt.subplots_adjust(hspace=0.5)
 
-    # Fog image comparisons
-    if 'sky' in str(BASE_PATH):
-        fnames = ['fog_raster_0714_hg000_alb07', 'fog_raster_1414_hg000_alb07', 'fog_raster_2114_hg000_alb07',
-                  'fog_raytrace_0714_hg000_alb07', 'fog_raytrace_1414_hg000_alb07', 'fog_raytrace_2114_hg000_alb07']
-    elif 'sun' in str(BASE_PATH):
-        fnames = ['fog_raster_1414_hg000_alb07', 'fog_raytrace_1414_hg000_alb07']
-    xdata = []
-    ydata = []
-    xinterp = []
-    fog_y = []
-    images = []
-    for fname in fnames:
-        DATA_PATH = BASE_PATH / fname
-        list_simulations(DATA_PATH)
-
-        with open(DATA_PATH / 'names.txt') as file:
-            folders = eval(file.read())
-
-        if 'month' in fname:
-            analyse_luminosity_month(folders)
-        elif 'turbidity' in fname:
-            analyse_turbidity_sequence(folders)
-        elif 'fog' in fname and 'hg' in fname:
-            # Data
-            x1, y1, x2, y2 = analyse_fog_sequence(folders)
-            xdata.append(x1)
-            ydata.append(y1)
-            xinterp.append(x2)
-            fog_y.append(y2)
-
-            # Images
-            if img_type == 'LDR':
-                images.append(get_ldr_image(folders))
-            elif img_type == 'HDR':
-                images.append(get_tiff_image(folders))
-        else:
-            analyse_luminosity_sequence(folders)
-
+    # Work out what the correct subplot indices are
     if len(fnames) >= 6:
         sp_int = 230
     elif len(fnames) == 2:
         sp_int = 210
 
-    # Plot luminance analysis data
-    fig = plt.figure()
-    plt.rcParams["figure.figsize"] = (10, 6)
-    plt.subplots_adjust(hspace=0.5)
+    # Plot images in a loop
     for k in range(len(fog_y)):
         ax = fig.add_subplot(sp_int + k + 1)
         ax.plot(xinterp[k], fog_y[k])
-        ax.plot(xdata[k], ydata[k], '.')
+        try:
+            ax.plot(xdata[k], ydata[k], '.')
+        except ValueError:
+            continue
         ax.set_title(fnames[k])
-        plt.ylim([0, max(max(ydata)) + round(max(max(ydata)) / 10)])
+        # plt.ylim([0, max(max(ydata))])
     fig.text(0.5, 0.04, r'$Fog\;density\;(Max.\;Extinction\;Coeff.,\;[1/m])$', ha='center', va='center')
     fig.text(0.06, 0.5, r'$Solar\;luminosity\;[cd / m^2] * 1e9$', ha='center', va='center', rotation='vertical')
+    # Handle saving
     if save:
         if 'sun' in str(BASE_PATH):
             sname = f'C:/Users/ElliotLondon/Documents/PythonLocal/rFproControlPy/results/fog/analysis_sun.png'
@@ -365,6 +330,8 @@ if __name__ == '__main__':
             sname = f'C:/Users/ElliotLondon/Documents/PythonLocal/rFproControlPy/results/fog/analysis_sky.png'
         plt.savefig(sname, bbox_inches="tight")
 
+
+def plot_image_comparison(fnames, save: bool = False):
     # Plot timelapse of LDR/HDR images
     i = 0
     densities = [0.0001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.075, 0.1]
@@ -382,31 +349,138 @@ if __name__ == '__main__':
             plt.xticks([], [])
             plt.yticks([], [])
             plt.title(f'Density={densities[k]}')
+        # Handle saving
         if save:
             sname = f'C:/Users/ElliotLondon/Documents/PythonLocal/rFproControlPy/results/fog/timelapse_{fnames[i]}_{img_type}.png'
             plt.savefig(sname, bbox_inches="tight")
         i += 1
-    plt.show()
 
-    # # Plot fog anisotropy analysis data
-    # labels = []
-    # for element in fnames:
-    #     if 'hg00' in element:
-    #         labels.append('g=0.00')
-    #     elif 'hg10' in element and 'hg100' not in element:
-    #         labels.append('g=0.10')
-    #     elif 'hg20' in element:
-    #         labels.append('g=0.20')
-    #     elif 'hg50' in element:
-    #         labels.append('g=0.50')
-    #     elif 'hg100' in element:
-    #         labels.append('g=1.0')
-    # for k in range(len(fnames)):
-    #     plt.plot(xinterp[k], fog_y[k], label=r'$y=I_0\exp^{-2\pi r^2 nkZ}$')
-    #     plt.plot(xdata[k], ydata[k], '.', label=f'Measured data, {labels[k]}')
-    # # plt.yscale('log')
-    # plt.title('Solar luminosity at zenith, albedo = 0.7')
-    # plt.xlabel(r'$Fog\;density\;(Max.\;Extinction\;Coeff.,\;[1/m])$')
-    # plt.ylabel(r'$Solar\;luminosity\;[cd / m^2] * 1e9$')
-    # plt.legend()
-    # plt.show()
+
+def plot_anisotropy_analysis(save: bool = False):
+    # Plot fog anisotropy analysis data
+    labels = []
+    for element in fnames:
+        if 'hg00' in element:
+            labels.append('g=0.00')
+        elif 'hg10' in element and 'hg100' not in element:
+            labels.append('g=0.10')
+        elif 'hg20' in element:
+            labels.append('g=0.20')
+        elif 'hg50' in element:
+            labels.append('g=0.50')
+        elif 'hg100' in element:
+            labels.append('g=1.0')
+    for k in range(len(fnames)):
+        plt.plot(xinterp[k], fog_y[k], label=r'$y=I_0\exp^{-2\pi r^2 nkZ}$')
+        plt.plot(xdata[k], ydata[k], '.', label=f'Measured data, {labels[k]}')
+    # plt.yscale('log')
+    plt.title('Solar luminosity at zenith, albedo = 0.7')
+    plt.xlabel(r'$Fog\;density\;(Max.\;Extinction\;Coeff.,\;[1/m])$')
+    plt.ylabel(r'$Solar\;luminosity\;[cd / m^2] * 1e9$')
+    plt.legend()
+    if save:
+        sname = 'C:/Users/ElliotLondon/Documents/PythonLocal/rFproControlPy/results/fog/hg_slices.png'
+        plt.savefig(sname, bbox_inches="tight")
+
+
+def plot_anisotropy_analysis_mesh(images, save=save):
+    densities = [0.0, 0.01, 0.025, 0.05, 0.075, 0.1]
+    gs = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
+    spacing = 50
+
+    # For each image in fnames, get the .tiff
+    meshes = []
+    for folders in images:
+        tmp_meshes = []
+        for image in folders:
+            b2 = image[:, :, 2]
+            # Find the indices of the fixed/max x and y values
+            if 'sky' in str(BASE_PATH):
+                max_x = b2.shape[0] // 2 - 50
+                max_y = b2.shape[1] // 2
+            else:
+                max_x, max_y = np.unravel_index(b2.argmax(), b2.shape)
+            max_x_arr = slice(max_x - spacing, max_x + spacing)
+            max_y_arr = slice(max_y - spacing, max_y + spacing)
+            tmp_meshes.append(b2[max_x_arr, max_y_arr])
+        meshes.append(tmp_meshes)
+
+    # Sort the meshes such that all images with g=0.0 are in one array, then g=0.2, etc.
+    for k in range(len(gs)):
+        # Plot mesh with increasing g on subplots
+        fig = plt.figure()
+        plt.rcParams["figure.figsize"] = (10, 6)
+        plt.subplots_adjust(hspace=0.5)
+        fig.suptitle(f'Solar luminosity at zenith, albedo = 0.7, g={gs[k]}')
+        for j in range(len(meshes[k])):
+            ax = fig.add_subplot(230 + j + 1)
+            ax.grid(False)
+            plt.title(f'Fog density={densities[j]}')
+            ax.imshow(meshes[k][j])
+
+    if save:
+        sname = f'C:/Users/ElliotLondon/Documents/PythonLocal/rFproControlPy/results/fog/anisotropy_analysis.png'
+        plt.savefig(sname, bbox_inches="tight")
+
+
+if __name__ == '__main__':
+    # Define the sequence of folders to grab data from
+    # Fog HG anisotropy and albedo tests
+    # fnames = ['sweep_fog_hg00_alb07_max', 'sweep_fog_hg50_alb07_max', 'sweep_fog_hg100_alb07_max']
+    # fnames = ['sweep_fog_hg00_alb07_max', 'sweep_fog_hg10_alb07_max', 'sweep_fog_hg20_alb07_max']
+    # fnames = ['sweep_fog_hg00_alb1_max', 'sweep_fog_hg10_alb1_max', 'sweep_fog_hg20_alb1_max']
+    # fnames = ['timelapse_clear_full']
+
+    # Fog image comparisons
+    if 'sky' in str(BASE_PATH):
+        fnames = ['fog_raytrace_1414_hg000_alb07', 'fog_raytrace_1414_hg020_alb07', 'fog_raytrace_1414_hg040_alb07',
+                  'fog_raytrace_1414_hg060_alb07', 'fog_raytrace_1414_hg080_alb07', 'fog_raytrace_1414_hg100_alb07']
+    elif 'fog_anisotropy' in str(BASE_PATH):
+        # Fog anisotropy analysis
+        fnames = ['fog_raytrace_1414_hg000_alb07', 'fog_raytrace_1414_hg020_alb07', 'fog_raytrace_1414_hg040_alb07',
+                  'fog_raytrace_1414_hg060_alb07', 'fog_raytrace_1414_hg080_alb07', 'fog_raytrace_1414_hg100_alb07']
+    elif 'sun' in str(BASE_PATH):
+        fnames = ['fog_raster_1414_hg000_alb07', 'fog_raytrace_1414_hg000_alb07']
+
+    # Loop through all folders
+    xdata = []
+    ydata = []
+    xinterp = []
+    fog_y = []
+    images = []
+    for fname in fnames:
+        DATA_PATH = BASE_PATH / fname
+        list_simulations(DATA_PATH)
+        with open(DATA_PATH / 'names.txt') as file:
+            folders = eval(file.read())
+
+        # Switches for what is being analysed
+        if 'month' in fname:
+            analyse_luminosity_month(folders)
+        elif 'turbidity' in fname:
+            analyse_turbidity_sequence(folders)
+        elif 'fog_turbidity' in str(BASE_PATH):
+            images.append(get_tiff_image(fname)[0])
+        elif 'fog' in fname and 'hg' in fname:
+            # Data
+            x1, y1, x2, y2 = analyse_fog_sequence(folders)
+            xdata.append(x1)
+            ydata.append(y1)
+            xinterp.append(x2)
+            fog_y.append(y2)
+
+            # Images
+            if img_type == 'LDR':
+                images.append(get_ldr_image(folders))
+            elif img_type == 'HDR':
+                images.append(get_tiff_image(folders))
+        else:
+            analyse_luminosity_sequence(folders)
+
+    # plot_luminance_data(fnames, save=save)          # Plot Beer's law curves for luminances
+    # plot_image_comparison(fnames, save=save)        # Compare HDR/LDR images in 2x3 grid
+    # plot_anisotropy_analysis(save=save)             # Plot exponential curves of HG anisotropy
+    plot_anisotropy_analysis_mesh(images, save=save)  # Plot slices of image data to check anisotropy behaviour
+
+    # Call show at the end to plot stuff!
+    plt.show()
