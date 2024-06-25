@@ -22,7 +22,7 @@ from System import DateTime, Decimal
 
 # Load in the DATA_PATH
 DATA_PATH = sun_investigation.DATA_PATH
-comments = f'rasterised, cloud sweep'
+comments = f'raytraced, fog sweep'
 
 
 def find_and_replace(data: List[str], values: dict) -> None:
@@ -63,7 +63,7 @@ if not isinstance(jdict['sl_settings']['default_turbidity'], list):
     turbidities = [jdict['sl_settings']['default_turbidity']]
 
 # Load the raytracer.toml file, insert the correct fog params, and save it.
-fog_hg = 1.0
+fog_hg = 0.0
 fog_albedo = 0.7
 with open(r"C:/rFpro/2023b/rFpro/Plugins/RaytracePlugin.toml", 'r') as f:
     rt_data = f.readlines()
@@ -76,14 +76,15 @@ with open(r"C:/rFpro/2023b/rFpro/Plugins/RaytracePlugin.toml", 'w') as f:
     f.writelines(rt_data)
 
 # Create an instance of the rFpro.Controller
-rFpro = Controller.DeserializeFromFile('../configs/autogen/PyTest1.json')
+# rFpro = Controller.DeserializeFromFile('../configs/autogen/2kFlatLHD.json')
+rFpro = Controller.DeserializeFromFile('../configs/autogen/SimPerfTests_Plugin.json')
 
 # Static settings
 rFpro.DynamicWeatherEnabled = True
-rFpro.Camera = 'Cockpit'
+rFpro.Camera = 'Nosecam'
 rFpro.ParkedTrafficDensity = Decimal(0.5)
 rFpro.Vehicle = 'Hatchback_AWD_Red'
-rFpro.Location = '2kFlat'
+# rFpro.Location = '2kFlat'
 rFpro.VehiclePlugin = 'RemoteModelPlugin'
 
 values_dict = {}

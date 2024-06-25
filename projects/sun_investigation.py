@@ -1,110 +1,19 @@
 import numpy as np
 from matplotlib import pyplot as plt
-from pathlib import Path
 import seaborn as sns
 from osgeo import gdal
 from typing import Optional, List
 from scipy.optimize import curve_fit
 from core.fog_functions import calc_fog_func
 
+from core.lighting_functions import calc_zenith_function
 from utils.file_management import list_simulations
+from utils.math_utils import gauss_func, create_circular_mask
+from core.global_files import BASE_PATH, DATA_PATH, img_num, img_type, save
+from core.processing import get_tiff_image, get_ldr_image
 
 sns.set(palette="dark", font_scale=1.1, color_codes=True)
 sns.set_style('darkgrid', {'axes.linewidth': 1, 'axes.edgecolor': 'black'})
-
-# Init, loads, globals...
-# BASE_PATH = Path(r'C:\Users\ElliotLondon\Documents\PythonLocal\rFproControlPy\data\sun\fog_anisotropy')
-BASE_PATH = Path(r'C:\Users\ElliotLondon\Documents\PythonLocal\rFproControlPy\data\sky\fog_anisotropy')
-DATA_PATH = BASE_PATH / 'fog_raytrace_1414_hg100_alb07'
-img_num = '0004'
-# img_type = 'LDR'
-img_type = 'HDR'
-save = False
-
-
-def sin_func(x, a, b, c, d):
-    # sin function
-    return a * np.sin(b * (x + c)) + d
-
-
-def gauss_func(x, a, x0, sigma):
-    # Gaussian function
-    return a * np.exp(-(x - x0) ** 2 / (2 * sigma ** 2))
-
-
-def calc_zenith_function(array_len: int, ydata: np.array([float])) -> np.array([float]):
-    # A function for calculating the sun's luminance for a given time of day. Input and output should follow
-    # minutes from zenith convention, i.e., x=0 is zenith, x=-30 is 30 minutes before zenith, x=30 is 30 minutes after
-    # zenith, etc.
-
-    # Init necessary variables
-    adj_len = (array_len - 1) / 2
-
-    # Convert minutes from zenith to angle
-    latitude = 51.48 * np.pi / 180
-    dec_angle = -23.45 * np.cos(360 / 365 * (172 + 10)) * np.pi / 180  # Angle of declination
-    hour_angle = np.linspace(-adj_len * 7.5, adj_len * 7.5, array_len) * np.pi / 180  # Local hour angle
-
-    # Solar elevation
-    # https://www.omnicalculator.com/physics/sun-angle
-    elev_angle = np.arcsin(
-        (np.sin(dec_angle) * np.sin(latitude)) +
-        (np.cos(latitude) * np.cos(hour_angle) * np.cos(dec_angle)))
-
-    # Convert solar elevation to luminosity scale
-    # https://www.pveducation.org/pvcdrom/properties-of-sunlight/calculation-of-solar-insolation
-    i_d = 1.353 * 0.7 ** ((1 / np.sin(elev_angle)) ** 0.678)
-    i_d_norm = i_d - max(i_d) + max(ydata)
-
-    return i_d_norm
-
-
-def get_tiff_image(folders):
-    # Load data path according to whether there is a folder time passed in
-    images = []
-    for folder in folders:
-        current_data_path = DATA_PATH / folder
-        data_set = gdal.Open(str(current_data_path / f'TrainingTruthHDR_{img_num}.tiff'))
-
-        # As, there are 3 bands, we will store in 3 different variables
-        band_1 = data_set.GetRasterBand(1)  # red channel
-        band_2 = data_set.GetRasterBand(2)  # green channel
-        band_3 = data_set.GetRasterBand(3)  # blue channel
-        b1 = band_1.ReadAsArray()
-        b2 = band_2.ReadAsArray()
-        b3 = band_3.ReadAsArray()
-
-        images.append(np.dstack((b1, b2, b3)))
-
-    return images
-
-
-def get_ldr_image(folders):
-    images = []
-    for folder in folders:
-        current_data_path = DATA_PATH / folder
-        fpath = (str(current_data_path / f'TrainingTruthLDR_{img_num}.bmp'))
-        images.append(plt.imread(fpath))
-
-    return images
-
-
-def plot_rgb_data(data, colour: str, label: str):
-    plt.plot(data, '.', color=colour, label=label, markersize=1)
-    plt.title("HDR image readout")
-    plt.xlabel("Pixel #")
-    plt.ylabel("Intensity (knits)")
-    # Fix duplicate legends
-    handles, labels = plt.gca().get_legend_handles_labels()
-    by_label = dict(zip(labels, handles))
-    plt.legend(by_label.values(), by_label.keys())
-
-
-def create_circular_mask(h, w, center, radius):
-    y, x = np.ogrid[:h, :w]
-    dist_from_center = np.sqrt((x - center[0]) ** 2 + (y - center[1]) ** 2)
-    mask = dist_from_center <= radius
-    return mask
 
 
 def analyse_luminosity(folder_time: Optional[str] = None) -> float:
@@ -146,15 +55,6 @@ def analyse_luminosity(folder_time: Optional[str] = None) -> float:
             for j in range(len(b1[0, :])):
                 if b1[i, j] > max_value:
                     max_value = b1[i, j]
-
-    # # Show cleaned plots
-    # plot_rgb_data(new_b1, 'r', 'Channel: R')
-    # plot_rgb_data(new_b2, 'g', 'Channel: G')
-    # plot_rgb_data(new_b3, 'b', 'Channel: B')
-    # plt.show()
-
-    # # Units are in knits (kcd / m^2)
-    # tot_max = sum(sum(new_b1) + sum(new_b2) + sum(new_b3))
 
     # knits to nits (cd/m^2)
     max_value *= 1000
@@ -386,14 +286,20 @@ def plot_anisotropy_analysis(save: bool = False):
 def plot_anisotropy_analysis_mesh(images, save=save):
     densities = [0.0, 0.01, 0.025, 0.05, 0.075, 0.1]
     gs = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
-    spacing = 50
+    gs = [0]
+    spacing = 550
 
     # For each image in fnames, get the .tiff
     meshes = []
     for folders in images:
+        i = 0
         tmp_meshes = []
         for image in folders:
             b2 = image[:, :, 2]
+            # plt.imshow(0.2126 * image[:, :, 0] + 0.7152 * image[:, :, 1] + 0.0722 * image[:, :, 2])
+            # plt.colorbar()
+            # plt.grid(False)
+            plt.show()
             # Find the indices of the fixed/max x and y values
             if 'sky' in str(BASE_PATH):
                 max_x = b2.shape[0] // 2 - 50
@@ -403,6 +309,15 @@ def plot_anisotropy_analysis_mesh(images, save=save):
             max_x_arr = slice(max_x - spacing, max_x + spacing)
             max_y_arr = slice(max_y - spacing, max_y + spacing)
             tmp_meshes.append(b2[max_x_arr, max_y_arr])
+
+            # Handle removal of dead pixels
+            if i == 0 or i == 1:
+                # tmp_meshes[0][tmp_meshes[0] > 5] = 1
+                plt.imshow(tmp_meshes[0])
+                plt.colorbar()
+                plt.grid(False)
+                plt.show()
+                i += 1
         meshes.append(tmp_meshes)
 
     # Sort the meshes such that all images with g=0.0 are in one array, then g=0.2, etc.
@@ -433,14 +348,21 @@ if __name__ == '__main__':
 
     # Fog image comparisons
     if 'sky' in str(BASE_PATH):
-        fnames = ['fog_raytrace_1414_hg000_alb07', 'fog_raytrace_1414_hg020_alb07', 'fog_raytrace_1414_hg040_alb07',
-                  'fog_raytrace_1414_hg060_alb07', 'fog_raytrace_1414_hg080_alb07', 'fog_raytrace_1414_hg100_alb07']
+        fnames = ['fog_raytrace_1414_hg000_alb04', 'fog_raytrace_1414_hg020_alb04', 'fog_raytrace_1414_hg040_alb04',
+                  'fog_raytrace_1414_hg060_alb04', 'fog_raytrace_1414_hg080_alb04', 'fog_raytrace_1414_hg100_alb04']
+        # fnames = ['fog_raytrace_1414_hg000_alb07', 'fog_raytrace_1414_hg020_alb07', 'fog_raytrace_1414_hg040_alb07',
+        #           'fog_raytrace_1414_hg060_alb07', 'fog_raytrace_1414_hg080_alb07', 'fog_raytrace_1414_hg100_alb07']
+        # fnames = ['fog_raytrace_2114_hg000_alb07', 'fog_raytrace_2114_hg020_alb07', 'fog_raytrace_2114_hg040_alb07',
+        #           'fog_raytrace_2114_hg060_alb07', 'fog_raytrace_2114_hg080_alb07', 'fog_raytrace_2114_hg100_alb07']
     elif 'fog_anisotropy' in str(BASE_PATH):
         # Fog anisotropy analysis
         fnames = ['fog_raytrace_1414_hg000_alb07', 'fog_raytrace_1414_hg020_alb07', 'fog_raytrace_1414_hg040_alb07',
                   'fog_raytrace_1414_hg060_alb07', 'fog_raytrace_1414_hg080_alb07', 'fog_raytrace_1414_hg100_alb07']
     elif 'sun' in str(BASE_PATH):
         fnames = ['fog_raster_1414_hg000_alb07', 'fog_raytrace_1414_hg000_alb07']
+
+    # Anything temporary to override current analysis
+    fnames = ['fog_raytrace_0214_hg000_alb07_test']
 
     # Loop through all folders
     xdata = []

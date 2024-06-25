@@ -57,7 +57,7 @@ sl_settings = "sl_settings_lum_1e9_fog"
 # sl_settings = "sl_settings_raytrace"
 
 # Create an instance of the rFpro.Controller
-rFpro = Controller.DeserializeFromFile('../configs/autogen/PyTest1.json')
+rFpro = Controller.DeserializeFromFile('../configs/autogen/2kFlatLHD.json')
 print(rFpro)
 
 # Static settings
