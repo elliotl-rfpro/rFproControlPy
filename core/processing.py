@@ -1,5 +1,5 @@
 from osgeo import gdal
-from core.global_files import DATA_PATH, img_num
+from core.global_variables import DATA_PATH, img_num
 import numpy as np
 from matplotlib import pyplot as plt
 import OpenEXR as exr

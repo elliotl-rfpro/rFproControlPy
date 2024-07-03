@@ -4,12 +4,14 @@ import seaborn as sns
 from osgeo import gdal
 from typing import Optional, List
 from scipy.optimize import curve_fit
+
+import core.global_variables
 from core.fog_functions import calc_fog_func
 
 from core.lighting_functions import calc_zenith_function
 from utils.file_management import list_simulations
-from utils.math_utils import gauss_func, create_circular_mask
-from core.global_files import BASE_PATH, DATA_PATH, img_num, img_type, save
+from utils.math_utils import calc_theoretical_luminance
+from core.global_variables import BASE_PATH, DATA_PATH, img_num, img_type, save
 from core.processing import get_tiff_image, get_ldr_image
 
 sns.set(palette="dark", font_scale=1.1, color_codes=True)
@@ -231,6 +233,26 @@ def plot_luminance_data(fnames, save: bool = False):
         plt.savefig(sname, bbox_inches="tight")
 
 
+def plot_luminance_images(images, save: bool = False):
+    for image in images[0]:
+        # plt.title('Raytraced image output')
+        # plt.imshow(image)
+        # plt.grid(False)
+        # plt.show()
+
+        plt.title('Luminance map')
+        plt.imshow(0.2126 * image[:, :, 0] + 0.7152 * image[:, :, 1] + 0.0722 * image[:, :, 2])
+        plt.grid(False)
+        plt.colorbar()
+        plt.show()
+
+        light_details = {'X': 5, 'Y': 0, 'Z': 1, 'I': 18000}
+        surface_details = {'X': 5, 'Y': 0, 'Z': 0, 'rho': 0.75}
+        sensor_details = {'X': 0, 'Y': 0, 'Z': 1}
+        print(f'Theoretical luminance: {calc_theoretical_luminance(light_details, surface_details, sensor_details)}')
+        print(f'Max luminance: {np.max(0.2126 * image[:, :, 0] + 0.7152 * image[:, :, 1] + 0.0722 * image[:, :, 2])}')
+
+
 def plot_image_comparison(fnames, save: bool = False):
     # Plot timelapse of LDR/HDR images
     i = 0
@@ -285,7 +307,7 @@ def plot_anisotropy_analysis(save: bool = False):
 
 def plot_anisotropy_analysis_mesh(images, save=save):
     densities = [0.0, 0.01, 0.025, 0.05, 0.075, 0.1]
-    gs = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
+    # gs = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
     gs = [0]
     spacing = 550
 
@@ -362,7 +384,7 @@ if __name__ == '__main__':
         fnames = ['fog_raster_1414_hg000_alb07', 'fog_raytrace_1414_hg000_alb07']
 
     # Anything temporary to override current analysis
-    fnames = ['fog_raytrace_0214_hg000_alb07_test']
+    fnames = [core.global_variables.data_name]
 
     # Loop through all folders
     xdata = []
@@ -397,9 +419,16 @@ if __name__ == '__main__':
             elif img_type == 'HDR':
                 images.append(get_tiff_image(folders))
         else:
+            # Images
+            if img_type == 'LDR':
+                images.append(get_ldr_image(folders))
+            elif img_type == 'HDR':
+                images.append(get_tiff_image(folders))
+            break
             analyse_luminosity_sequence(folders)
 
     # plot_luminance_data(fnames, save=save)          # Plot Beer's law curves for luminances
+    plot_luminance_images(images, save=save)        # Plot raw image, luminance images
     # plot_image_comparison(fnames, save=save)        # Compare HDR/LDR images in 2x3 grid
     # plot_anisotropy_analysis(save=save)             # Plot exponential curves of HG anisotropy
     plot_anisotropy_analysis_mesh(images, save=save)  # Plot slices of image data to check anisotropy behaviour

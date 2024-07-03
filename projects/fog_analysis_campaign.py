@@ -12,6 +12,7 @@ import json
 import shutil
 from typing import List
 import sun_investigation
+from core.global_variables import sl_settings, autogen_fname, comments
 
 # Load the rFpro.Controller DLL/Assembly
 clr.AddReference("C:/rFpro/2023b/API/rFproControllerExamples/Controller/rFpro.Controller")
@@ -22,7 +23,6 @@ from System import DateTime, Decimal
 
 # Load in the DATA_PATH
 DATA_PATH = sun_investigation.DATA_PATH
-comments = f'raytraced, fog sweep'
 
 
 def find_and_replace(data: List[str], values: dict) -> None:
@@ -38,15 +38,6 @@ def find_and_replace(data: List[str], values: dict) -> None:
                 data[i] = data[i].replace(value, str(values[key]))
             i += 1
 
-
-# Which sl_settings.json?
-# sl_settings = "sl_settings_default"
-# sl_settings = "sl_settings_lum_1e9"
-# sl_settings = "sl_settings_lum_1e9_months"
-# sl_settings = "sl_settings_lum_1e9_turbidity"
-sl_settings = "sl_settings_lum_1e9_fog"
-# sl_settings = "sl_settings_lum_1e9_clouds"
-# sl_settings = "sl_settings_raytrace"
 
 # Simulation settings for the current campaign. Load from configs/sl_settings_default.json
 with open(f'../configs/{sl_settings}.json', 'r') as file:
@@ -77,7 +68,7 @@ with open(r"C:/rFpro/2023b/rFpro/Plugins/RaytracePlugin.toml", 'w') as f:
 
 # Create an instance of the rFpro.Controller
 # rFpro = Controller.DeserializeFromFile('../configs/autogen/2kFlatLHD.json')
-rFpro = Controller.DeserializeFromFile('../configs/autogen/SimPerfTests_Plugin.json')
+rFpro = Controller.DeserializeFromFile(f'../configs/autogen/{autogen_fname}.json')
 
 # Static settings
 rFpro.DynamicWeatherEnabled = True

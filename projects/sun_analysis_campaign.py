@@ -12,7 +12,6 @@ import json
 import shutil
 from typing import List
 import sun_investigation
-import sky_investigation
 
 # Load the rFpro.Controller DLL/Assembly
 clr.AddReference("C:/rFpro/2023b/API/rFproControllerExamples/Controller/rFpro.Controller")
