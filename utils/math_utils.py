@@ -19,6 +19,14 @@ def create_circular_mask(h, w, center, radius):
     return mask
 
 
+def calc_spherical_coord(distance, angle):
+    # For a given object, O, and camera, C, at a fixed distance D, calculate the X and Y position of the camera, and
+    # The angle that permits it to face the object.
+    x = distance * np.cos(angle)
+    y = distance * np.sin(angle)
+    return x, y
+
+
 def calc_theoretical_luminance(light_details, surface_details, sensor_details) -> float:
     """
     Given an input light, surface, and camera orientation, use trig and Lambert's cosine law to calculate the
