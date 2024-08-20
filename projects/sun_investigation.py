@@ -41,15 +41,10 @@ def analyse_luminosity(folder_time: Optional[str] = None) -> float:
     b2 = band_2.ReadAsArray()
     b3 = band_3.ReadAsArray()
 
-    # # Show initial plots
-    # plot_rgb_data(b1, 'r', 'Channel: R')
-    # plot_rgb_data(b2, 'g', 'Channel: G')
-    # plot_rgb_data(b3, 'b', 'Channel: B')
-    # plt.show()
-
     if 'sky' in str(DATA_PATH):
         # Just use the central value
-        max_value = b2[b2.shape[1] // 2, b2.shape[0] // 2 - 50]
+        # max_value = b2[b2.shape[1] // 2, b2.shape[0] // 2]
+        max_value = b2[200, 500]
     else:
         # Find and use max value
         max_value = 0
@@ -57,6 +52,9 @@ def analyse_luminosity(folder_time: Optional[str] = None) -> float:
             for j in range(len(b1[0, :])):
                 if b1[i, j] > max_value:
                     max_value = b1[i, j]
+
+    # plt.imshow(b2)
+    # plt.show()
 
     # knits to nits (cd/m^2)
     max_value *= 1000
@@ -151,6 +149,9 @@ def analyse_luminosity_sequence(folder_times: List[str] = None) -> None:
     xdata = np.linspace(-start_time, start_time, array_len)
     xinterp = np.linspace(-start_time, start_time, 250)
     yinterp = np.interp(xinterp, xdata, ydata)
+
+    # Save sky data
+    np.save('C:/Users/ElliotLondon/Documents/PythonLocal/rFproControlPy/results/sky/clear_sky_luminance.npy', ydata)
 
     # Get luminance from ydata
     i_d_norm = calc_zenith_function(array_len, ydata)
@@ -366,7 +367,7 @@ if __name__ == '__main__':
     # fnames = ['sweep_fog_hg00_alb07_max', 'sweep_fog_hg50_alb07_max', 'sweep_fog_hg100_alb07_max']
     # fnames = ['sweep_fog_hg00_alb07_max', 'sweep_fog_hg10_alb07_max', 'sweep_fog_hg20_alb07_max']
     # fnames = ['sweep_fog_hg00_alb1_max', 'sweep_fog_hg10_alb1_max', 'sweep_fog_hg20_alb1_max']
-    # fnames = ['timelapse_clear_full']
+    fnames = ['timelapse_clear_full']
 
     # Fog image comparisons
     if 'sky' in str(BASE_PATH):
@@ -424,11 +425,11 @@ if __name__ == '__main__':
                 images.append(get_ldr_image(folders))
             elif img_type == 'HDR':
                 images.append(get_tiff_image(folders))
-            break
+            # break
             analyse_luminosity_sequence(folders)
 
-    # plot_luminance_data(fnames, save=save)          # Plot Beer's law curves for luminances
-    plot_luminance_images(images, save=save)        # Plot raw image, luminance images
+    plot_luminance_data(fnames, save=save)          # Plot Beer's law curves for luminances
+    # plot_luminance_images(images, save=save)        # Plot raw image, luminance images
     # plot_image_comparison(fnames, save=save)        # Compare HDR/LDR images in 2x3 grid
     # plot_anisotropy_analysis(save=save)             # Plot exponential curves of HG anisotropy
     plot_anisotropy_analysis_mesh(images, save=save)  # Plot slices of image data to check anisotropy behaviour

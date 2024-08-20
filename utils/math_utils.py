@@ -3,13 +3,21 @@ from scipy.constants import pi
 
 
 def sin_func(x, a, b, c, d):
-    # sin function
     return a * np.sin(b * (x + c)) + d
+
+
+def cos_func(x, a, b, c, d):
+    return a * np.cos(b * (x + c)) + d
 
 
 def gauss_func(x, a, x0, sigma):
     # Gaussian function
     return a * np.exp(-(x - x0) ** 2 / (2 * sigma ** 2))
+
+
+def visibility_func(x, k, a, c, b):
+    # Exponential decay with an unknown param k
+    return a * np.exp(- k * (x - b)) + c
 
 
 def create_circular_mask(h, w, center, radius):
